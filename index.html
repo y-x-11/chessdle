@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chessdle</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- FontAwesome for tool icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chess.js library for game simulation and validation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+</head>
+<body>
+    <div id="app-container">
+        <!-- Top bar -->
+        <header>
+            <div class="logo-container">
+                <img src="logo.png" alt="Chessdle Logo" class="app-logo">
+                <h1>Chessdle</h1>
+            </div>
+            <div class="header-controls">
+                <button id="btn-stats" title="Statistics"><i class="fas fa-chart-bar"></i></button>
+                <button id="btn-tutorial" title="How to Play"><i class="fas fa-question-circle"></i></button>
+            </div>
+        </header>
+
+        <!-- Main Game Area -->
+        <main>
+            <!-- Sidebar / Tools -->
+            <aside id="toolbar">
+                <div class="tool-group">
+                    <button class="tool-btn active" id="tool-hand" title="Move Pieces"><i class="fas fa-hand-pointer"></i></button>
+                    <button class="tool-btn" id="tool-eraser" title="Eraser"><i class="fas fa-eraser"></i></button>
+                    <div class="pen-container">
+                        <button class="tool-btn" id="tool-pen" title="Freehand Pen"><i class="fas fa-pen"></i></button>
+                        <div id="color-picker" class="hidden">
+                            <div class="color-swatch" data-color="red" style="background: red;"></div>
+                            <div class="color-swatch" data-color="black" style="background: black;"></div>
+                            <div class="color-swatch" data-color="white" style="background: white; border: 1px solid #ccc;"></div>
+                            <div class="color-swatch" data-color="blue" style="background: blue;"></div>
+                            <div class="color-swatch" data-color="green" style="background: green;"></div>
+                        </div>
+                    </div>
+                    <div class="arrow-container">
+                        <button class="tool-btn" id="tool-arrow" title="Draw Arrow"><i class="fas fa-location-arrow"></i></button>
+                    </div>
+                </div>
+
+                <div class="tool-group">
+                    <div class="flip-container">
+                        <button class="tool-btn" id="btn-flip" title="Flip Board Options"><i class="fas fa-sync-alt"></i></button>
+                        <div id="flip-menu" class="hidden">
+                            <button id="flip-pieces">Flip Pieces</button>
+                            <button id="flip-all">Flip Pieces & Ink</button>
+                        </div>
+                    </div>
+                    <div class="trash-container">
+                        <button class="tool-btn" id="btn-trash" title="Clear options"><i class="fas fa-trash"></i></button>
+                        <div id="trash-menu" class="hidden">
+                            <button id="clear-pieces">Clear Pieces</button>
+                            <button id="clear-drawings">Clear Drawings</button>
+                            <button id="clear-both">Clear Both</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tool-group submit-group">
+                    <button id="btn-submit" title="Submit Guess">
+                        <i class="fas fa-check"></i> <span>Submit</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Center Board -->
+            <section id="board-area">
+                <div id="piece-tray-top" class="piece-tray black-tray"></div>
+                <div class="board-wrapper">
+                    <div id="board"></div>
+                    <canvas id="draw-layer"></canvas>
+                </div>
+                <div id="piece-tray-bottom" class="piece-tray white-tray"></div>
+            </section>
+
+            <!-- Guess History / Sidebar -->
+            <aside id="history">
+                <div id="inventory-panel" style="margin-bottom: 20px; background: rgba(255,255,255,0.25); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 10px; border-bottom: none; padding-bottom: 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">Target Inventory</h3>
+                    <div id="inventory-list"></div>
+                </div>
+                <h3>Guesses (<span id="guess-count">0</span>/8)</h3>
+                <div id="guesses-container">
+                    <!-- History rows will go here -->
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-overlay" class="hidden">
+        <div id="tutorial-modal" class="modal hidden">
+            <h2>How to Play</h2>
+            <p>Guess the hidden chess position in 8 tries.</p>
+            <p>Each guess must be a valid chess position based on standard rules (e.g. 1 King each, kings not touching).</p>
+            <p style="margin-bottom: 20px;">Use the <strong>Target Inventory</strong> on the right side to see exactly which pieces are present on the hidden board. You must place exactly these pieces to win!</p>
+            <div class="legend">
+                <div class="legend-item"><div class="square-sample green"></div> Correct piece and exactly correct spot</div>
+                <div class="legend-item"><div class="square-sample orange"></div> Correct piece, adjacent spot (HOT)</div>
+                <div class="legend-item"><div class="square-sample yellow"></div> Correct piece, far away (COLD)</div>
+                <div class="legend-item"><div class="square-sample grey"></div> Piece not in the exact quantity in target board</div>
+            </div>
+            <button class="close-modal">Start Playing</button>
+        </div>
+
+        <div id="alert-modal" class="modal hidden">
+            <h2>Invalid Board!</h2>
+            <p id="alert-message">Your board violates standard chess rules.</p>
+            <button class="close-modal">Okay</button>
+        </div>
+
+        <div id="game-over-modal" class="modal hidden">
+            <h2 id="game-over-title">You Won!</h2>
+            <p id="game-over-message">You guessed the board correctly.</p>
+            <h3 style="margin-top:20px; margin-bottom: 15px;">Chessdle Answer:</h3>
+            <div class="board-wrapper">
+                <div id="solution-board"></div>
+            </div>
+            <button id="btn-play-again" class="close-modal" style="margin-top: 20px;">Play Again</button>
+        </div>
+
+        <div id="stats-modal" class="modal hidden">
+            <h2 style="text-align: center; margin-bottom: 20px;">Statistics</h2>
+            <div class="stats-row">
+                <div class="stat-box"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Played</div></div>
+                <div class="stat-box"><div class="stat-num" id="stat-win-rate">0</div><div class="stat-label">Win %</div></div>
+                <div class="stat-box"><div class="stat-num" id="stat-current-streak">0</div><div class="stat-label">Current<br>Streak</div></div>
+                <div class="stat-box"><div class="stat-num" id="stat-max-streak">0</div><div class="stat-label">Max<br>Streak</div></div>
+            </div>
+            <h3 style="margin-top: 20px; font-size: 1.1rem;">Guess Distribution</h3>
+            <div id="guess-distribution">
+                <!-- Bar graph injected here by JS -->
+            </div>
+            <button class="close-modal" style="margin-top: 20px; width: 100%;">Close</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
